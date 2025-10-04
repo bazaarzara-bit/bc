@@ -28,6 +28,28 @@
     <pre id="noticeText" class="whitespace-pre-wrap text-gray-700">Loading notice...</pre>
   </div>
 
+  <!-- Search Filters -->
+  <div class="card m-4 flex flex-col md:flex-row gap-4 items-center">
+    <div>
+      <label class="font-semibold">📅 तारीख चुनें:</label>
+      <input type="date" id="dateInput" class="border p-1 rounded">
+    </div>
+    <div>
+      <label class="font-semibold">🔎 नाम:</label>
+      <input type="text" id="searchName" placeholder="नाम से खोजें" class="border p-1 rounded">
+    </div>
+    <div>
+      <label class="font-semibold">📝 स्थिति:</label>
+      <select id="statusFilter" class="border p-1 rounded">
+        <option value="">सभी</option>
+        <option value="approved">Paid</option>
+        <option value="pending">Pending</option>
+        <option value="rejected">Bakaya</option>
+      </select>
+    </div>
+    <button onclick="loadPayments()" class="bg-indigo-600 text-white px-4 py-1 rounded">🔄 खोजें</button>
+  </div>
+
   <!-- Payments -->
   <div class="card m-4">
     <h2 class="font-bold text-lg mb-2">आज का हिसाब</h2>
@@ -68,29 +90,41 @@
     document.getElementById("noticeText").innerText = text || "कोई सूचना नहीं";
   });
 
-  // Load today's payments
-  const today = new Date().toISOString().split("T")[0];
-  db.ref("dailyPayments/"+today).on("value", snap=>{
-    const tbody = document.getElementById("paymentTable");
-    tbody.innerHTML="";
-    if(!snap.exists()) {
-      tbody.innerHTML = `<tr><td colspan="3" class="p-2 text-center text-gray-500">आज कोई पेमेंट दर्ज नहीं हुई</td></tr>`;
-    } else {
-      snap.forEach(p=>{
-        const val=p.val();
-        const statusLed = val.status==="approved" ? "green" 
-                         : val.status==="pending" ? "yellow" 
-                         : "red";
-        const row=document.createElement("tr");
-        row.innerHTML=`
-          <td class="border p-2">${val.name}</td>
-          <td class="border p-2">₹${val.amount}</td>
-          <td class="border p-2"><span class="led ${statusLed}"></span>${val.status}</td>
-        `;
-        tbody.appendChild(row);
-      });
-    }
-  });
+  // Load Payments Function
+  function loadPayments() {
+    const date = document.getElementById("dateInput").value || new Date().toISOString().split("T")[0];
+    const searchName = document.getElementById("searchName").value.toLowerCase();
+    const statusFilter = document.getElementById("statusFilter").value;
+
+    db.ref("dailyPayments/"+date).once("value", snap=>{
+      const tbody = document.getElementById("paymentTable");
+      tbody.innerHTML="";
+      if(!snap.exists()) {
+        tbody.innerHTML = `<tr><td colspan="3" class="p-2 text-center text-gray-500">उस दिन कोई पेमेंट दर्ज नहीं हुई</td></tr>`;
+      } else {
+        snap.forEach(p=>{
+          const val=p.val();
+          const statusLed = val.status==="approved" ? "green" 
+                           : val.status==="pending" ? "yellow" 
+                           : "red";
+          // Filters लागू करें
+          if(searchName && !val.name.toLowerCase().includes(searchName)) return;
+          if(statusFilter && val.status!==statusFilter) return;
+
+          const row=document.createElement("tr");
+          row.innerHTML=`
+            <td class="border p-2">${val.name}</td>
+            <td class="border p-2">₹${val.amount}</td>
+            <td class="border p-2"><span class="led ${statusLed}"></span>${val.status}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+    });
+  }
+
+  // Default आज का हिसाब लोड
+  window.onload = loadPayments;
 </script>
 </body>
 </html>
