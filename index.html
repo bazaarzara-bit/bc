@@ -52,10 +52,11 @@
 
   <!-- Payments -->
   <div class="card m-4">
-    <h2 class="font-bold text-lg mb-2">आज का हिसाब</h2>
+    <h2 class="font-bold text-lg mb-2">हिसाब की तालिका</h2>
     <table class="min-w-full bg-white border">
       <thead>
         <tr class="bg-indigo-500 text-white">
+          <th class="p-2 border">तारीख</th>
           <th class="p-2 border">नाम</th>
           <th class="p-2 border">राशि</th>
           <th class="p-2 border">स्थिति</th>
@@ -100,19 +101,21 @@
       const tbody = document.getElementById("paymentTable");
       tbody.innerHTML="";
       if(!snap.exists()) {
-        tbody.innerHTML = `<tr><td colspan="3" class="p-2 text-center text-gray-500">उस दिन कोई पेमेंट दर्ज नहीं हुई</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="p-2 text-center text-gray-500">उस दिन कोई पेमेंट दर्ज नहीं हुई</td></tr>`;
       } else {
         snap.forEach(p=>{
           const val=p.val();
           const statusLed = val.status==="approved" ? "green" 
                            : val.status==="pending" ? "yellow" 
                            : "red";
+
           // Filters लागू करें
           if(searchName && !val.name.toLowerCase().includes(searchName)) return;
           if(statusFilter && val.status!==statusFilter) return;
 
           const row=document.createElement("tr");
           row.innerHTML=`
+            <td class="border p-2">${date}</td>
             <td class="border p-2">${val.name}</td>
             <td class="border p-2">₹${val.amount}</td>
             <td class="border p-2"><span class="led ${statusLed}"></span>${val.status}</td>
