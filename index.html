@@ -11,7 +11,6 @@
 </head>
 <body class="bg-gray-100 min-h-screen">
 
-<!-- Header -->
 <header class="bg-gradient-to-r from-blue-500 to-green-500 p-4 shadow-lg flex justify-between items-center">
   <h1 class="text-white text-2xl font-bold">Zara Samajik Seva Sanstha Dashboard</h1>
   <button id="logoutBtn" class="bg-red-500 px-3 py-1 rounded shadow hover:shadow-lg text-white">Logout</button>
@@ -73,16 +72,6 @@
     <button id="postNoticeBtn" class="bg-blue-600 text-white px-4 py-2 rounded-2xl shadow hover:shadow-lg mt-2">Post Notice</button>
   </div>
 
-  <!-- Terms Modal -->
-  <div id="termsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden justify-center items-center">
-    <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-lg w-full">
-      <h2 class="text-xl font-bold mb-2">Terms & Conditions</h2>
-      <textarea id="termsInput" class="w-full p-2 border rounded-xl mb-2"></textarea>
-      <button id="saveTermsBtn" class="bg-green-600 text-white px-4 py-2 rounded-2xl shadow hover:shadow-lg">Save</button>
-      <button onclick="document.getElementById('termsModal').classList.add('hidden')" class="bg-red-500 text-white px-4 py-2 rounded-2xl shadow hover:shadow-lg ml-2">Close</button>
-    </div>
-  </div>
-
 </main>
 
 <script>
@@ -93,13 +82,11 @@
     projectId: "zara-bazaar-56c56",
     storageBucket: "zara-bazaar-56c56.appspot.com",
     messagingSenderId: "659516194908",
-    appId: "1:659516194908:web:96e2428c6a606b539ae699",
+    appId: "1:659516194908:web-96e2428c6a606b539ae699",
     measurementId: "G-N1KSJJRS20"
   };
 
-  // Initialize Firebase
   firebase.initializeApp(firebaseConfig);
-
   const db = firebase.database();
 
   // Admin login check
@@ -123,6 +110,9 @@
   const filterDate = document.getElementById('filterDate');
   const filterName = document.getElementById('filterName');
   const filterStatus = document.getElementById('filterStatus');
+  const noticeBoard = document.getElementById('noticeBoard');
+  const noticeInput = document.getElementById('noticeInput');
+  const postNoticeBtn = document.getElementById('postNoticeBtn');
 
   let allPayments = {};
 
@@ -190,7 +180,6 @@
     });
   }
 
-  // Approve / Reject
   function approvePayment(id){ db.ref('dailyPayments/'+allPayments[id].date+'/'+id).update({status:'approved'}); }
   function rejectPayment(id){ db.ref('dailyPayments/'+allPayments[id].date+'/'+id).update({status:'rejected'}); }
 
@@ -199,10 +188,6 @@
   filterStatus.addEventListener('change', renderConsolidatedTable);
 
   // Notice board
-  const noticeBoard = document.getElementById('noticeBoard');
-  const noticeInput = document.getElementById('noticeInput');
-  const postNoticeBtn = document.getElementById('postNoticeBtn');
-
   db.ref('notices').on('value', snapshot=>{
     noticeBoard.innerHTML = '';
     const notices = snapshot.val() || {};
@@ -219,7 +204,6 @@
     if(text) db.ref('notices').push({text});
     noticeInput.value = '';
   });
-
 </script>
 
 </body>
