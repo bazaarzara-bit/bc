@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zara Samajik Seva Sanstha Dashboard</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<!-- Header -->
+<header class="bg-gradient-to-r from-blue-500 to-green-500 p-4 shadow-lg flex justify-between items-center">
+  <h1 class="text-white text-2xl font-bold">Zara Samajik Seva Sanstha Dashboard</h1>
+  <button id="logoutBtn" class="bg-red-500 px-3 py-1 rounded shadow hover:shadow-lg text-white">Logout</button>
+</header>
+
+<main class="p-4 max-w-7xl mx-auto">
+
+  <!-- Filters -->
+  <div class="flex flex-wrap gap-4 mb-4 bg-white rounded-2xl shadow-2xl p-4">
+    <input type="date" id="filterDate" class="border rounded-xl shadow-inner p-2 focus:ring-2 focus:ring-blue-400" placeholder="Search by Date">
+    <input type="text" id="filterName" class="border rounded-xl shadow-inner p-2 focus:ring-2 focus:ring-blue-400" placeholder="Search by Name">
+    <select id="filterStatus" class="border rounded-xl shadow-inner p-2">
+      <option value="all">All</option>
+      <option value="paid">Paid</option>
+      <option value="pending">Bakaya</option>
+    </select>
+  </div>
+
+  <!-- Consolidated Table -->
+  <div class="bg-white rounded-2xl shadow-2xl p-6 mb-8">
+    <h2 class="text-xl font-bold mb-4">All Payments Summary</h2>
+    <table class="min-w-full table-auto">
+      <thead class="bg-gray-200 rounded-2xl">
+        <tr>
+          <th class="p-2">Name</th>
+          <th class="p-2">Date</th>
+          <th class="p-2">Amount</th>
+          <th class="p-2">Status</th>
+          <th class="p-2">Paid / Bakaya</th>
+          <th class="p-2">Penalty</th>
+          <th class="p-2">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="consolidatedTableBody" class="bg-white"></tbody>
+    </table>
+  </div>
+
+  <!-- Daily Table -->
+  <div class="bg-white rounded-2xl shadow-2xl p-6 mb-8">
+    <h2 class="text-xl font-bold mb-4">Daily Payments</h2>
+    <table class="min-w-full table-auto">
+      <thead class="bg-gray-200">
+        <tr>
+          <th class="p-2">Name</th>
+          <th class="p-2">Amount</th>
+          <th class="p-2">Status</th>
+          <th class="p-2">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="dailyTableBody" class="bg-white"></tbody>
+    </table>
+  </div>
+
+  <!-- Notice Board -->
+  <div class="bg-white rounded-2xl shadow-2xl p-6 mb-8">
+    <h2 class="text-xl font-bold mb-4">Notice Board</h2>
+    <div id="noticeBoard" class="overflow-auto max-h-40"></div>
+    <textarea id="noticeInput" class="w-full p-2 border rounded-xl mt-2" placeholder="Write notice..."></textarea>
+    <button id="postNoticeBtn" class="bg-blue-600 text-white px-4 py-2 rounded-2xl shadow hover:shadow-lg mt-2">Post Notice</button>
+  </div>
+
+  <!-- Terms Modal -->
+  <div id="termsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden justify-center items-center">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-lg w-full">
+      <h2 class="text-xl font-bold mb-2">Terms & Conditions</h2>
+      <textarea id="termsInput" class="w-full p-2 border rounded-xl mb-2"></textarea>
+      <button id="saveTermsBtn" class="bg-green-600 text-white px-4 py-2 rounded-2xl shadow hover:shadow-lg">Save</button>
+      <button onclick="document.getElementById('termsModal').classList.add('hidden')" class="bg-red-500 text-white px-4 py-2 rounded-2xl shadow hover:shadow-lg ml-2">Close</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // Firebase config
+  const firebaseConfig = {
+    apiKey: "AIzaSyDzm51ZL75nEVDvtTNVvxTMp4cTMBmlxuM",
+    authDomain: "zara-bazaar-56c56.firebaseapp.com",
+    projectId: "zara-bazaar-56c56",
+    storageBucket: "zara-bazaar-56c56.appspot.com",
+    messagingSenderId: "659516194908",
+    appId: "1:659516194908:web:96e2428c6a606b539ae699",
+    measurementId: "G-N1KSJJRS20"
+  };
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+
+  const db = firebase.database();
+
+  // Admin login check
+  firebase.auth().onAuthStateChanged(user=>{
+    if(user){
+      db.ref('users/'+user.uid).once('value').then(snapshot=>{
+        if(snapshot.val()?.role !== 'admin'){
+          alert('Access Denied! Only admin allowed.');
+          window.location.href = 'login.html';
+        }
+      });
+    } else {
+      window.location.href = 'login.html';
+    }
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', ()=>firebase.auth().signOut());
+
+  const consolidatedTableBody = document.getElementById('consolidatedTableBody');
+  const dailyTableBody = document.getElementById('dailyTableBody');
+  const filterDate = document.getElementById('filterDate');
+  const filterName = document.getElementById('filterName');
+  const filterStatus = document.getElementById('filterStatus');
+
+  let allPayments = {};
+
+  // Fetch all payments
+  db.ref('dailyPayments').on('value', snapshot=>{
+    allPayments = {};
+    const data = snapshot.val() || {};
+    Object.keys(data).forEach(date=>{
+      Object.keys(data[date]).forEach(id=>{
+        allPayments[id] = {...data[date][id], id, date};
+      });
+    });
+    renderConsolidatedTable();
+    renderDailyTable();
+  });
+
+  function renderConsolidatedTable(){
+    consolidatedTableBody.innerHTML = '';
+    const dateVal = filterDate.value;
+    const nameVal = filterName.value.toLowerCase();
+    const statusVal = filterStatus.value;
+
+    Object.values(allPayments).forEach(p=>{
+      const paidStatus = p.status === 'approved' ? 'paid' : 'pending';
+      if((!dateVal || p.date===dateVal) &&
+         (!nameVal || p.name.toLowerCase().includes(nameVal)) &&
+         (statusVal==='all' || statusVal===paidStatus)){
+        const tr = document.createElement('tr');
+        tr.className = 'border-b';
+        tr.innerHTML = `
+          <td class="p-2">${p.name}</td>
+          <td class="p-2">${p.date}</td>
+          <td class="p-2">₹${p.amount}</td>
+          <td class="p-2">${p.status}</td>
+          <td class="p-2">${paidStatus==='paid'?p.amount:'₹'+p.amount}</td>
+          <td class="p-2">${p.status==='rejected'?'₹'+p.amount:'-'}</td>
+          <td class="p-2 flex gap-2 flex-wrap">
+            ${paidStatus==='pending'?`<a href="https://wa.me/9112170192?text=${encodeURIComponent('Reminder: '+p.name+' pending payment ₹'+p.amount)}" target="_blank" class="bg-green-600 text-white px-2 py-1 rounded shadow hover:shadow-lg text-xs">WhatsApp</a>`:''}
+            <button onclick="approvePayment('${p.id}')" class="bg-blue-600 text-white px-2 py-1 rounded shadow hover:shadow-lg text-xs">Approve</button>
+            <button onclick="rejectPayment('${p.id}')" class="bg-red-600 text-white px-2 py-1 rounded shadow hover:shadow-lg text-xs">Reject</button>
+          </td>
+        `;
+        consolidatedTableBody.appendChild(tr);
+      }
+    });
+  }
+
+  function renderDailyTable(){
+    dailyTableBody.innerHTML = '';
+    const today = new Date().toISOString().slice(0,10);
+    Object.values(allPayments).filter(p=>p.date===today).forEach(p=>{
+      const tr = document.createElement('tr');
+      tr.className = 'border-b';
+      tr.innerHTML = `
+        <td class="p-2">${p.name}</td>
+        <td class="p-2">₹${p.amount}</td>
+        <td class="p-2">${p.status}</td>
+        <td class="p-2 flex gap-2">
+          ${p.status==='pending'?`<a href="https://wa.me/9112170192?text=${encodeURIComponent('Reminder: '+p.name+' pending payment ₹'+p.amount)}" target="_blank" class="bg-green-600 text-white px-2 py-1 rounded shadow hover:shadow-lg text-xs">WhatsApp</a>`:''}
+          <button onclick="approvePayment('${p.id}')" class="bg-blue-600 text-white px-2 py-1 rounded shadow hover:shadow-lg text-xs">Approve</button>
+          <button onclick="rejectPayment('${p.id}')" class="bg-red-600 text-white px-2 py-1 rounded shadow hover:shadow-lg text-xs">Reject</button>
+        </td>
+      `;
+      dailyTableBody.appendChild(tr);
+    });
+  }
+
+  // Approve / Reject
+  function approvePayment(id){ db.ref('dailyPayments/'+allPayments[id].date+'/'+id).update({status:'approved'}); }
+  function rejectPayment(id){ db.ref('dailyPayments/'+allPayments[id].date+'/'+id).update({status:'rejected'}); }
+
+  filterDate.addEventListener('change', renderConsolidatedTable);
+  filterName.addEventListener('input', renderConsolidatedTable);
+  filterStatus.addEventListener('change', renderConsolidatedTable);
+
+  // Notice board
+  const noticeBoard = document.getElementById('noticeBoard');
+  const noticeInput = document.getElementById('noticeInput');
+  const postNoticeBtn = document.getElementById('postNoticeBtn');
+
+  db.ref('notices').on('value', snapshot=>{
+    noticeBoard.innerHTML = '';
+    const notices = snapshot.val() || {};
+    Object.values(notices).forEach(n=>{
+      const div = document.createElement('div');
+      div.className = 'p-2 mb-1 bg-gray-100 rounded-xl shadow-inner';
+      div.textContent = n.text;
+      noticeBoard.appendChild(div);
+    });
+  });
+
+  postNoticeBtn.addEventListener('click', ()=>{
+    const text = noticeInput.value.trim();
+    if(text) db.ref('notices').push({text});
+    noticeInput.value = '';
+  });
+
+</script>
+
+</body>
+</html>
