@@ -3,10 +3,11 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Zara Samajik Seva Sanstha</title>
+  <title>Zara Samajik Seva Sanstha Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <style>
     body { font-family: Arial, sans-serif; }
     .card { background:#fff; padding:1rem; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); margin-bottom:1rem; }
@@ -18,8 +19,23 @@
 </head>
 <body class="bg-gray-100 min-h-screen">
 
+<!-- Login -->
+<div id="loginDiv" class="fixed inset-0 bg-gray-900 bg-opacity-80 flex items-center justify-center">
+  <div class="bg-white p-6 rounded shadow-lg w-80 text-center">
+    <h2 class="text-xl font-bold mb-4">Admin Login</h2>
+    <button onclick="googleLogin()" class="bg-red-600 text-white px-4 py-2 rounded w-full flex items-center justify-center gap-2">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" class="w-5 h-5"/> Sign in with Google
+    </button>
+    <p id="loginError" class="text-red-500 text-sm mt-2"></p>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard" class="hidden">
+
   <header class="bg-indigo-600 text-white p-4 text-center text-xl font-bold">
     💰 Zara Samajik Seva Sanstha Dashboard
+    <button onclick="auth.signOut()" class="bg-gray-700 text-white px-3 py-1 rounded ml-4">Logout</button>
   </header>
 
   <!-- Notice -->
@@ -28,31 +44,30 @@
     <pre id="noticeText" class="whitespace-pre-wrap text-gray-700">Loading notice...</pre>
   </div>
 
-<!-- Compact Search Filters -->
-<div class="card m-4 flex flex-wrap gap-2 items-center">
-  <div class="flex flex-col">
-    <label class="font-semibold text-sm">📅 तारीख:</label>
-    <input type="date" id="dateInput" class="border p-1 rounded w-32">
+  <!-- Compact Search Filters -->
+  <div class="card m-4 flex flex-wrap gap-2 items-center">
+    <div class="flex flex-col">
+      <label class="font-semibold text-sm">📅 तारीख:</label>
+      <input type="date" id="dateInput" class="border p-1 rounded w-32">
+    </div>
+    <div class="flex flex-col">
+      <label class="font-semibold text-sm">🔎 नाम:</label>
+      <input type="text" id="searchName" placeholder="नाम खोजें" class="border p-1 rounded w-32">
+    </div>
+    <div class="flex flex-col">
+      <label class="font-semibold text-sm">📝 स्थिति:</label>
+      <select id="statusFilter" class="border p-1 rounded w-32">
+        <option value="">सभी</option>
+        <option value="approved">Paid</option>
+        <option value="pending">Pending</option>
+        <option value="rejected">Bakaya</option>
+      </select>
+    </div>
+    <button onclick="loadPayments()" class="bg-indigo-600 text-white px-3 py-1 rounded flex items-center gap-1 mt-4 md:mt-0">🔄 खोजें</button>
+    <button onclick="resetFilters()" class="bg-gray-500 text-white px-3 py-1 rounded flex items-center gap-1 mt-4 md:mt-0">♻️ Reset</button>
   </div>
-  <div class="flex flex-col">
-    <label class="font-semibold text-sm">🔎 नाम:</label>
-    <input type="text" id="searchName" placeholder="नाम खोजें" class="border p-1 rounded w-32">
-  </div>
-  <div class="flex flex-col">
-    <label class="font-semibold text-sm">📝 स्थिति:</label>
-    <select id="statusFilter" class="border p-1 rounded w-32">
-      <option value="">सभी</option>
-      <option value="approved">Paid</option>
-      <option value="pending">Pending</option>
-      <option value="rejected">Bakaya</option>
-    </select>
-  </div>
-  <button onclick="loadPayments()" class="bg-indigo-600 text-white px-3 py-1 rounded flex items-center gap-1 mt-4 md:mt-0">🔄 खोजें</button>
-  <button onclick="resetFilters()" class="bg-gray-500 text-white px-3 py-1 rounded flex items-center gap-1 mt-4 md:mt-0">♻️ All</button>
-</div>
 
-
-  <!-- Payments -->
+  <!-- Payments Table -->
   <div class="card m-4">
     <h2 class="font-bold text-lg mb-2">हिसाब की तालिका</h2>
     <table class="min-w-full bg-white border">
@@ -68,8 +83,10 @@
     </table>
   </div>
 
+</div>
+
 <script>
-  // 🔥 Firebase Config
+  // Firebase Config
   const firebaseConfig = {
     apiKey: "AIzaSyDzm51ZL75nEVDvtTNVvxTMp4cTMBmlxuM",
     authDomain: "zara-bazaar-56c56.firebaseapp.com",
@@ -83,17 +100,46 @@
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
+  const auth = firebase.auth();
+  const provider = new firebase.auth.GoogleAuthProvider();
+
+  function googleLogin() {
+    auth.signInWithPopup(provider)
+      .then((result) => {
+        const user = result.user;
+        if(user.email === "zarasamajiksevasanstha@gmail.com") {
+          document.getElementById("loginDiv").style.display = "none";
+          document.getElementById("dashboard").classList.remove("hidden");
+          loadPayments();
+        } else {
+          auth.signOut();
+          document.getElementById("loginError").innerText = "आप admin नहीं हैं।";
+        }
+      })
+      .catch((error) => {
+        document.getElementById("loginError").innerText = error.message;
+      });
+  }
+
+  auth.onAuthStateChanged(user => {
+    if(user && user.email === "zarasamajiksevasanstha@gmail.com") {
+      document.getElementById("loginDiv").style.display = "none";
+      document.getElementById("dashboard").classList.remove("hidden");
+      loadPayments();
+    } else {
+      document.getElementById("loginDiv").style.display = "flex";
+      document.getElementById("dashboard").classList.add("hidden");
+    }
+  });
 
   // Load Notices
   db.ref("notices").on("value", snap => {
     let text = "";
-    snap.forEach(n => {
-      text += "👉 " + n.val().text + "\n";
-    });
+    snap.forEach(n => { text += "👉 " + n.val().text + "\n"; });
     document.getElementById("noticeText").innerText = text || "कोई सूचना नहीं";
   });
 
-  // Load Payments Function
+  // Load Payments
   function loadPayments() {
     const date = document.getElementById("dateInput").value || new Date().toISOString().split("T")[0];
     const searchName = document.getElementById("searchName").value.toLowerCase();
@@ -106,17 +152,14 @@
         tbody.innerHTML = `<tr><td colspan="4" class="p-2 text-center text-gray-500">उस दिन कोई पेमेंट दर्ज नहीं हुई</td></tr>`;
       } else {
         snap.forEach(p=>{
-          const val=p.val();
-          const statusLed = val.status==="approved" ? "green" 
-                           : val.status==="pending" ? "yellow" 
-                           : "red";
+          const val = p.val();
+          const statusLed = val.status==="approved"?"green":val.status==="pending"?"yellow":"red";
 
-          // Filters लागू करें
           if(searchName && !val.name.toLowerCase().includes(searchName)) return;
           if(statusFilter && val.status!==statusFilter) return;
 
-          const row=document.createElement("tr");
-          row.innerHTML=`
+          const row = document.createElement("tr");
+          row.innerHTML = `
             <td class="border p-2">${date}</td>
             <td class="border p-2">${val.name}</td>
             <td class="border p-2">₹${val.amount}</td>
@@ -128,16 +171,12 @@
     });
   }
 
-  // Reset Function
   function resetFilters() {
     document.getElementById("dateInput").value = "";
     document.getElementById("searchName").value = "";
     document.getElementById("statusFilter").value = "";
     loadPayments();
   }
-
-  // Default आज का हिसाब लोड
-  window.onload = loadPayments;
 </script>
 
 </body>
