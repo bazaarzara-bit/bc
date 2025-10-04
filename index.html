@@ -25,7 +25,7 @@
   <!-- Notice -->
   <div class="card m-4">
     <h2 class="font-bold text-lg mb-2">📢 Notice Board</h2>
-    <p id="noticeText">Loading notice...</p>
+    <pre id="noticeText" class="whitespace-pre-wrap text-gray-700">Loading notice...</pre>
   </div>
 
   <!-- Payments -->
@@ -59,11 +59,13 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
-  // Load Notice
+  // Load Notices
   db.ref("notices").on("value", snap => {
-    let text = "कोई सूचना नहीं";
-    snap.forEach(n => text = n.val().text);
-    document.getElementById("noticeText").innerText = text;
+    let text = "";
+    snap.forEach(n => {
+      text += "👉 " + n.val().text + "\n";
+    });
+    document.getElementById("noticeText").innerText = text || "कोई सूचना नहीं";
   });
 
   // Load today's payments
@@ -71,17 +73,23 @@
   db.ref("dailyPayments/"+today).on("value", snap=>{
     const tbody = document.getElementById("paymentTable");
     tbody.innerHTML="";
-    snap.forEach(p=>{
-      const val=p.val();
-      const statusLed = val.status==="approved"?"yellow":val.status==="pending"?"green":"red";
-      const row=document.createElement("tr");
-      row.innerHTML=`
-        <td class="border p-2">${val.name}</td>
-        <td class="border p-2">₹${val.amount}</td>
-        <td class="border p-2"><span class="led ${statusLed}"></span>${val.status}</td>
-      `;
-      tbody.appendChild(row);
-    });
+    if(!snap.exists()) {
+      tbody.innerHTML = `<tr><td colspan="3" class="p-2 text-center text-gray-500">आज कोई पेमेंट दर्ज नहीं हुई</td></tr>`;
+    } else {
+      snap.forEach(p=>{
+        const val=p.val();
+        const statusLed = val.status==="approved" ? "green" 
+                         : val.status==="pending" ? "yellow" 
+                         : "red";
+        const row=document.createElement("tr");
+        row.innerHTML=`
+          <td class="border p-2">${val.name}</td>
+          <td class="border p-2">₹${val.amount}</td>
+          <td class="border p-2"><span class="led ${statusLed}"></span>${val.status}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
   });
 </script>
 </body>
