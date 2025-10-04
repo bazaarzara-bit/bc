@@ -28,29 +28,46 @@
     <pre id="noticeText" class="whitespace-pre-wrap text-gray-700">Loading notice...</pre>
   </div>
 
-<!-- Search Filters -->
-<div class="card m-4 flex flex-col md:flex-row gap-4 items-center">
-  <div>
-    <label class="font-semibold">📅 तारीख चुनें:</label>
-    <input type="date" id="dateInput" class="border p-1 rounded">
+  <!-- Search Filters -->
+  <div class="card m-4 flex flex-col md:flex-row gap-4 items-center">
+    <div>
+      <label class="font-semibold">📅 तारीख चुनें:</label>
+      <input type="date" id="dateInput" class="border p-1 rounded">
+    </div>
+    <div>
+      <label class="font-semibold">🔎 नाम:</label>
+      <input type="text" id="searchName" placeholder="नाम से खोजें" class="border p-1 rounded">
+    </div>
+    <div>
+      <label class="font-semibold">📝 स्थिति:</label>
+      <select id="statusFilter" class="border p-1 rounded">
+        <option value="">सभी</option>
+        <option value="approved">Paid</option>
+        <option value="pending">Pending</option>
+        <option value="rejected">Bakaya</option>
+      </select>
+    </div>
+    <button onclick="loadPayments()" class="bg-indigo-600 text-white px-4 py-1 rounded">🔄 खोजें</button>
+    <button onclick="resetFilters()" class="bg-gray-500 text-white px-4 py-1 rounded">♻️ Reset</button>
   </div>
-  <div>
-    <label class="font-semibold">🔎 नाम:</label>
-    <input type="text" id="searchName" placeholder="नाम से खोजें" class="border p-1 rounded">
-  </div>
-  <div>
-    <label class="font-semibold">📝 स्थिति:</label>
-    <select id="statusFilter" class="border p-1 rounded">
-      <option value="">सभी</option>
-      <option value="approved">Paid</option>
-      <option value="pending">Pending</option>
-      <option value="rejected">Bakaya</option>
-    </select>
-  </div>
-  <button onclick="loadPayments()" class="bg-indigo-600 text-white px-4 py-1 rounded">🔄 खोजें</button>
-  <button onclick="resetFilters()" class="bg-gray-500 text-white px-4 py-1 rounded">♻️ Reset</button>
-</div>
 
+  <!-- Payments -->
+  <div class="card m-4">
+    <h2 class="font-bold text-lg mb-2">हिसाब की तालिका</h2>
+    <table class="min-w-full bg-white border">
+      <thead>
+        <tr class="bg-indigo-500 text-white">
+          <th class="p-2 border">तारीख</th>
+          <th class="p-2 border">नाम</th>
+          <th class="p-2 border">राशि</th>
+          <th class="p-2 border">स्थिति</th>
+        </tr>
+      </thead>
+      <tbody id="paymentTable"></tbody>
+    </table>
+  </div>
+
+<script>
   // 🔥 Firebase Config
   const firebaseConfig = {
     apiKey: "AIzaSyDzm51ZL75nEVDvtTNVvxTMp4cTMBmlxuM",
@@ -110,8 +127,17 @@
     });
   }
 
+  // Reset Function
+  function resetFilters() {
+    document.getElementById("dateInput").value = "";
+    document.getElementById("searchName").value = "";
+    document.getElementById("statusFilter").value = "";
+    loadPayments();
+  }
+
   // Default आज का हिसाब लोड
   window.onload = loadPayments;
 </script>
+
 </body>
 </html>
